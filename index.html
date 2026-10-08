@@ -11,6 +11,7 @@
     button:active { background: #0056b3; }
     p { font-size: 18px; min-height: 1.5em; color: #333; margin: 10px 0; }
     .time-badge { display: inline-block; background: #e3f2fd; color: #0d47a1; padding: 4px 12px; border-radius: 16px; font-size: 14px; font-weight: bold; margin-top: 5px; }
+    .error-msg { color: red; font-size: 14px; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -28,6 +29,7 @@
     <h3>翻訳結果（英語）：</h3>
     <p id="translateResult">（ここに翻訳が表示されます）</p>
     <div id="timeResult" class="time-badge">処理時間: - 秒</div>
+    <div id="errorLog" class="error-msg"></div>
   </div>
 
   <script>
@@ -35,32 +37,72 @@
     const speechResult = document.getElementById('speechResult');
     const translateResult = document.getElementById('translateResult');
     const timeResult = document.getElementById('timeResult');
+    const errorLog = document.getElementById('errorLog');
 
-    let startTime = 0; // 開始時間を記録する変数
+    let startTime = 0;
 
-    // ブラウザの音声認識（SpeechRecognition）の準備
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      alert('お使いのブラウザは音声認識に対応していません。');
+      errorLog.innerText = 'エラー: お使いのブラウザ（または設定）は音声認識に対応していません。';
     } else {
       const recognition = new SpeechRecognition();
-      recognition.lang = 'ja-JP'; // 入力は日本語
+      recognition.lang = 'ja-JP';
 
-      // ボタンを押したら音声認識スタート
       startBtn.onclick = () => {
         speechResult.innerText = '聴いています...';
         translateResult.innerText = '...';
         timeResult.innerText = '処理時間: 計測中...';
-        startTime = performance.now(); // 計測スタート
-        recognition.start();
+        errorLog.innerText = '';
+        startTime = performance.now();
+        
+        try {
+          recognition.start();
+        } catch (err) {
+          errorLog.innerText = '起動エラー: ' + err.message;
+        }
       };
 
-      // 話し終わった時の処理
+      recognition.onerror = (event) => {
+        errorLog.innerText = '音声認識エラー: ' + event.error;
+        speechResult.innerText = 'エラーが発生しました';
+      };
+
       recognition.onresult = (event) => {
         const text = event.results[0][0].transcript;
         speechResult.innerText = text;
-
-        // 高精度なGoogle翻訳を実行
         translateText(text);
+      };
+    }
+
+    async function translateText(text) {
+      translateResult.innerText = '翻訳中...';
+      try {
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ja&tl=en&dt=t&q=${encodeURIComponent(text)}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        const translatedText = data[0].map(item => item[0]).join('');
+        translateResult.innerText = translatedText;
+
+        const endTime = performance.now();
+        const duration = ((endTime - startTime) / 1000).toFixed(2);
+        timeResult.innerText = `処理時間: ${duration} 秒`;
+
+        speak(translatedText);
+
+      } catch (error) {
+        translateResult.innerText = '翻訳エラーが発生しました。';
+        errorLog.innerText = '翻訳APIエラー: ' + error.message;
+      }
+    }
+
+    function speak(text) {
+      const uttr = new SpeechSynthesisUtterance(text);
+      uttr.lang = 'en-US';
+      window.speechSynthesis.speak(uttr);
+    }
+  </script>
+</body>
+</html>
 
