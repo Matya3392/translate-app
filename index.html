@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自作・簡単ほんやくアプリ</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f0f4f8; text-align: center; }
+    .box { background: white; padding: 20px; border-radius: 12px; margin: 15px auto; max-width: 500px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    button { font-size: 18px; padding: 12px 24px; background: #007aff; color: white; border: none; border-radius: 8px; cursor: pointer; }
+    button:active { background: #0056b3; }
+    p { font-size: 18px; min-height: 1.5em; color: #333; margin: 10px 0; }
+    .time-badge { display: inline-block; background: #e3f2fd; color: #0d47a1; padding: 4px 12px; border-radius: 16px; font-size: 14px; font-weight: bold; margin-top: 5px; }
+  </style>
+</head>
+<body>
+
+  <h1>🌏 My 探究翻訳アプリ</h1>
+
+  <button id="startBtn">🎤 話しかける（日本語）</button>
+
+  <div class="box">
+    <h3>話した言葉（日本語）：</h3>
+    <p id="speechResult">ボタンを押して話してください...</p>
+  </div>
+
+  <div class="box">
+    <h3>翻訳結果（英語）：</h3>
+    <p id="translateResult">（ここに翻訳が表示されます）</p>
+    <div id="timeResult" class="time-badge">処理時間: - 秒</div>
+  </div>
+
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const speechResult = document.getElementById('speechResult');
+    const translateResult = document.getElementById('translateResult');
+    const timeResult = document.getElementById('timeResult');
+
+    let startTime = 0; // 開始時間を記録する変数
+
+    // ブラウザの音声認識（SpeechRecognition）の準備
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert('お使いのブラウザは音声認識に対応していません。');
+    } else {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'ja-JP'; // 入力は日本語
+
+      // ボタンを押したら音声認識スタート
+      startBtn.onclick = () => {
+        speechResult.innerText = '聴いています...';
+        translateResult.innerText = '...';
+        timeResult.innerText = '処理時間: 計測中...';
+        startTime = performance.now(); // 計測スタート
+        recognition.start();
+      };
+
+      // 話し終わった時の処理
+      recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        speechResult.innerText = text;
+
+        // 高精度なGoogle翻訳を実行
+        translateText(text);
+
